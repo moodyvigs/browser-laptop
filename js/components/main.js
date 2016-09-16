@@ -746,6 +746,7 @@ class Main extends ImmutableComponent {
     const loginRequiredDetail = activeFrame ? basicAuthState.getLoginRequiredDetail(this.props.appState, activeFrame.get('tabId')) : null
 
     const customTitlebarEnabled = isWindows
+    const captionButtonsVisible = customTitlebarEnabled && !this.props.windowState.getIn(['ui', 'isFullScreen'])
     const menubarVisible = customTitlebarEnabled && (!getSetting(settings.AUTO_HIDE_MENU) || this.props.windowState.getIn(['ui', 'menubar', 'isVisible']))
     const menubarTemplate = menubarVisible ? this.props.appState.getIn(['menu', 'template']) : null
     const menubarSelectedLabel = this.props.windowState.getIn(['ui', 'menubar', 'selectedLabel'])
@@ -764,7 +765,7 @@ class Main extends ImmutableComponent {
     return <div id='window'
       className={cx({
         isFullScreen: activeFrame && activeFrame.get('isFullScreen'),
-        frameless: customTitlebarEnabled
+        frameless: captionButtonsVisible
       })}
       ref={(node) => { this.mainWindow = node }}
       onMouseDown={this.onMouseDown}
@@ -853,7 +854,7 @@ class Main extends ImmutableComponent {
             </div>
           </div>
           {
-            customTitlebarEnabled
+            captionButtonsVisible
               ? <WindowCaptionButtons windowMaximized={this.props.windowState.getIn(['ui', 'isMaximized'])} />
               : null
           }
