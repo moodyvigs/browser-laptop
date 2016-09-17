@@ -516,7 +516,7 @@ WindowStore
       cookies: boolean
     }
   ],
-  importBroserDataSelected: {
+  importBrowserDataSelected: {
     index: string,
     type: number,
     history: boolean,

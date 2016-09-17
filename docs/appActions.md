@@ -355,7 +355,7 @@ Import browser data specified in selected
 
 **Parameters**
 
-**selected**: `object`, the browser data to import as per doc/state.md's importBroserDataSelected
+**selected**: `object`, the browser data to import as per doc/state.md's importBrowserDataSelected
 
 
 

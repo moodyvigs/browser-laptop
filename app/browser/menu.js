@@ -61,18 +61,6 @@ const createFileSubmenu = () => {
       }
     },
     CommonMenu.separatorMenuItem,
-    /*
-    {
-      label: locale.translation('importFrom'),
-      visible: false
-      submenu: [
-        {label: 'Google Chrome...'},
-        {label: 'Firefox...'},
-        {label: 'Safari...'}
-      ]
-    },
-    CommonMenu.separatorMenuItem,
-    */
     {
       // this should be disabled when
       // no windows are active
