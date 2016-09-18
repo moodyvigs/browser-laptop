@@ -1,12 +1,16 @@
 const browserActions = require('./browser/extensions/browserActions')
+const {app} = require('electron')
 const extensionActions = require('./common/actions/extensionActions')
 const AppStore = require('../js/stores/appStore')
 const config = require('../js/constants/config')
-const { fileUrl } = require('../js/lib/appUrlUtil')
-const { getAppUrl, getExtensionsPath, getIndexHTML } = require('../js/lib/appUrlUtil')
-const { getSetting } = require('../js/settings')
+const {fileUrl} = require('../js/lib/appUrlUtil')
+const {getAppUrl, getExtensionsPath, getIndexHTML} = require('../js/lib/appUrlUtil')
+const {getSetting} = require('../js/settings')
 const settings = require('../js/constants/settings')
 const {passwordManagers, extensionIds} = require('../js/constants/passwordManagers')
+const path = require('path')
+const appStore = require('../js/stores/appStore')
+const extensionState = require('./common/state/extensionState')
 
 let generateBraveManifest = () => {
   let baseManifest = {
@@ -140,7 +144,37 @@ let generateBraveManifest = () => {
 
 module.exports.init = () => {
   browserActions.init()
+
+  const defaultSession = require('electron').session.defaultSession
+  defaultSession.updateClient.on('component-checking-for-updates', () => {
+    // console.log('checking for update')
+  })
+  defaultSession.updateClient.on('component-wait', () => {
+    // console.log('component wait')
+  })
+  defaultSession.updateClient.on('component-update-found', () => {
+    // console.log('update-found')
+  })
+  defaultSession.updateClient.on('component-update-ready', () => {
+    // console.log('update-ready')
+  })
+  defaultSession.updateClient.on('component-update-updated', (e, extensionId, version) => {
+    // console.log('update-updated', extensionId, version)
+    // Re-setup the installedExtensions info if it exists
+    delete installedExtensions[extensionId]
+    const extensionPath = path.join(app.getPath('extensionsDir'), extensionId, version)
+    installExtension(extensionId, extensionPath)
+    enableExtension(extensionId)
+  })
+  defaultSession.updateClient.on('component-not-updated', () => {
+    // console.log('update-not-updated')
+  })
+  defaultSession.updateClient.on('component-update-downloading', () => {
+    // console.log('update-downloading')
+  })
+
   let installedExtensions = {}
+  let registeredExtensions = {}
   let extensionInstalled = (installInfo) => {
     if (installInfo.error) {
       console.error(installInfo.error)
@@ -148,13 +182,17 @@ module.exports.init = () => {
       return
     }
     installedExtensions[installInfo.id] = installInfo
+    installInfo.filePath = installInfo.base_path
     installInfo.base_path = fileUrl(installInfo.base_path)
 
     extensionActions.extensionInstalled(installInfo.id, installInfo)
+    // console.log('extensionActions.extensionInstalled: ', installInfo)
+    enableExtension(installInfo.id)
   }
 
   let installExtension = (extensionId, path, options = {}) => {
     if (!installedExtensions[extensionId]) {
+      // console.log('load extension: ', path, options)
       process.emit('load-extension', path, options, extensionInstalled)
     }
   }
@@ -175,34 +213,52 @@ module.exports.init = () => {
     }
   }
 
+  let registerExtension = (extensionId) => {
+    if (!registeredExtensions[extensionId]) {
+      defaultSession.updateClient.registerComponent(extensionId)
+      registeredExtensions[extensionId] = true
+    }
+  }
+
+  let checkForUpdate = (extensionId) => {
+    defaultSession.updateClient.checkNow(extensionId)
+  }
+
   let enableExtensions = () => {
     installExtension(config.braveExtensionId, getExtensionsPath('brave'), {manifest_location: 'component', manifest: generateBraveManifest()})
 
+    // Re-install previously known about extensions
+    const extensions = extensionState.getExtensions(appStore.getState())
+    extensions.keySeq()
+      .filter((extensionId) => extensionId !== config.braveExtensionId)
+      .forEach((extensionId) =>
+          installExtension(extensionId, extensions.getIn([extensionId, 'filePath'])))
+
     if (getSetting(settings.PDFJS_ENABLED)) {
-      installExtension(config.PDFJSExtensionId, getExtensionsPath('pdfjs'))
-      enableExtension(config.PDFJSExtensionId)
+      registerExtension(config.PDFJSExtensionId, getExtensionsPath('pdfjs'))
+      checkForUpdate(config.PDFJSExtensionId)
     } else {
       disableExtension(config.PDFJSExtensionId)
     }
 
     const activePasswordManager = getSetting(settings.ACTIVE_PASSWORD_MANAGER)
     if (activePasswordManager === passwordManagers.ONE_PASSWORD) {
-      installExtension(extensionIds[passwordManagers.ONE_PASSWORD], getExtensionsPath('1password'))
-      enableExtension(extensionIds[passwordManagers.ONE_PASSWORD])
+      registerExtension(extensionIds[passwordManagers.ONE_PASSWORD])
+      checkForUpdate(extensionIds[passwordManagers.ONE_PASSWORD])
     } else {
       disableExtension(extensionIds[passwordManagers.ONE_PASSWORD])
     }
 
     if (activePasswordManager === passwordManagers.DASHLANE) {
-      installExtension(extensionIds[passwordManagers.DASHLANE], getExtensionsPath('dashlane'))
-      enableExtension(extensionIds[passwordManagers.DASHLANE])
+      registerExtension(extensionIds[passwordManagers.DASHLANE], getExtensionsPath('dashlane'))
+      checkForUpdate(extensionIds[passwordManagers.DASHLANE])
     } else {
       disableExtension(extensionIds[passwordManagers.DASHLANE])
     }
 
     if (activePasswordManager === passwordManagers.LAST_PASS) {
-      installExtension(extensionIds[passwordManagers.LAST_PASS], getExtensionsPath('lastpass'))
-      enableExtension(extensionIds[passwordManagers.LAST_PASS])
+      registerExtension(extensionIds[passwordManagers.LAST_PASS], getExtensionsPath('lastpass'))
+      checkForUpdate(extensionIds[passwordManagers.LAST_PASS])
     } else {
       disableExtension(extensionIds[passwordManagers.LAST_PASS])
     }
