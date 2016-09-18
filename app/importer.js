@@ -72,6 +72,7 @@ importer.on('add-bookmarks', (e, bookmarks, topLevelFolder) => {
   let nextFolderId = siteUtil.getNextFolderId(AppStore.getState().get('sites'))
   let pathMap = {}
   let sites = []
+  /* TODO (Anthony): Move separate folder back when we have mulit select
   const topLevelFolderId = nextFolderId++
   sites.push({
     title: topLevelFolder,
@@ -80,7 +81,15 @@ importer.on('add-bookmarks', (e, bookmarks, topLevelFolder) => {
     lastAccessedTime: (new Date()).getTime(),
     tags: [siteTags.BOOKMARK_FOLDER]
   })
+  */
+  // Merge into existing bookmark toolbar
+  const topLevelFolderId = 0
   pathMap[topLevelFolder] = topLevelFolderId
+  pathMap['Bookmarks Toolbar'] = 0 // Firefox
+  pathMap['Bookmarks Bar'] = 0 // Chrome
+  pathMap['Other Bookmarks'] = -1 // Chrome
+  pathMap['Bookmark Bar'] = 0 // Safari
+  pathMap['Links'] = 0 // Edge, IE
   for (let i = 0; i < bookmarks.length; ++i) {
     const pathLen = bookmarks[i].path.length
     let parentFolderId = topLevelFolderId

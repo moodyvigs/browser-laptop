@@ -408,7 +408,7 @@ const appActions = {
 
   /**
    * Import browser data specified in selected
-   * @param {object} selected - the browser data to import as per doc/state.md's importBroserDataSelected
+   * @param {object} selected - the browser data to import as per doc/state.md's importBrowserDataSelected
    */
   importBrowserData: function (selected) {
     AppDispatcher.dispatch({
