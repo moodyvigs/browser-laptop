@@ -76,7 +76,7 @@ importer.on('add-bookmarks', (e, bookmarks, topLevelFolder) => {
   sites.push({
     title: topLevelFolder,
     folderId: topLevelFolderId,
-    parentFolderId: -1,
+    parentFolderId: 0,
     lastAccessedTime: (new Date()).getTime(),
     tags: [siteTags.BOOKMARK_FOLDER]
   })
