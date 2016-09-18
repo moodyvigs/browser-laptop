@@ -8,6 +8,7 @@ const ImmutableComponent = require('../../../js/components/immutableComponent')
 const windowActions = require('../../../js/actions/windowActions')
 const separatorMenuItem = require('../../common/commonMenu').separatorMenuItem
 const keyCodes = require('../../../js/constants/keyCodes')
+const { wrappingClamp } = require('../../common/lib/formatUtil')
 
 const showContextMenu = (rect, submenu) => {
   windowActions.setContextMenuDetail(Immutable.fromJS({
@@ -64,12 +65,6 @@ class MenubarItem extends ImmutableComponent {
   }
 }
 
-// BSCTODO: where to put this?
-const wrappingClamp = (value, min, max) => {
-  var range = (max - min) + 1
-  return value - Math.floor((value - min) / range) * range
-}
-
 /**
  * Menubar that can be optionally be displayed at the top of a window (in favor of the system menu).
  * First intended use is with Windows to enable a slim titlebar.
@@ -90,18 +85,25 @@ class Menubar extends ImmutableComponent {
   get selectedTemplate () {
     return this.getTemplateByLabel(this.props.selectedLabel)
   }
-  get selectedIndexMax () {
-    const template = this.selectedTemplate
-    if (!template) return 0
-
-    let count = 0
-    template.forEach((element) => {
-      if (element.get('type') !== separatorMenuItem.type) {
-        count++
+  get selectedTemplateItemsOnly () {
+    // this exclude the separators
+    return this.selectedTemplate.reduce((previousValue, currentValue, currentIndex, array) => {
+      const result = currentIndex === 1 ? [] : previousValue
+      if (currentIndex === 1 && previousValue.get('type') !== separatorMenuItem.type) {
+        result.push(previousValue)
       }
+      if (currentValue.get('type') !== separatorMenuItem.type) {
+        result.push(currentValue)
+      }
+      return result
     })
-
-    return count
+  }
+  get selectedIndexMax () {
+    const result = this.selectedTemplateItemsOnly
+    if (result && Array.isArray(result)) {
+      return result.length;
+    }
+    return 0
   }
   getRectByLabel (label) {
     const selected = document.querySelectorAll('.menubar .menubarItem[data-label=\'' + label + '\']')
@@ -116,7 +118,20 @@ class Menubar extends ImmutableComponent {
   onKeyDown (e) {
     // BSCTODO: how to handle if menu is ALWAYS showing?
     //          we can't just eat (preventDefault) the arrow keys :(
+    // BSCTODO: keyup handler needed:
+    // - for ESC, to set selection to null (context menu already handles ESC properly)
+    // - for ALT, unset selection and hide menu
+    //
     switch (e.which) {
+      case keyCodes.ENTER:
+        e.preventDefault()
+        if (this.selectedTemplate) {
+          const selectedLabel = this.selectedTemplateItemsOnly[this.props.selectedIndex].get('label')
+          windowActions.clickMenubarSubmenu(selectedLabel)
+          windowActions.resetMenuState()
+        }
+        break
+
       case keyCodes.LEFT:
       case keyCodes.RIGHT:
         e.preventDefault()
@@ -131,7 +146,7 @@ class Menubar extends ImmutableComponent {
               0,
               this.props.template.size - 1)
 
-          // BSCTODO: consider submenus
+          // BSCTODO: consider submenus (ex: for bookmark folders)
 
           const nextLabel = this.props.template.getIn([nextIndex, 'label'])
           const nextRect = this.getRectByLabel(nextLabel)
@@ -141,7 +156,7 @@ class Menubar extends ImmutableComponent {
           // Context menu already being displayed; auto-open the next one
           if (this.props.contextMenuDetail && this.selectedTemplate && nextRect) {
             windowActions.setSubmenuSelectedIndex(0)
-            showContextMenu(nextRect, this.getTemplateByLabel(nextLabel))
+            showContextMenu(nextRect, this.getTemplateByLabel(nextLabel).toJS())
           }
         }
         break
@@ -149,13 +164,11 @@ class Menubar extends ImmutableComponent {
       case keyCodes.UP:
       case keyCodes.DOWN:
         e.preventDefault()
-        if (this.props.selectedLabel) {
-          if (!this.selectedTemplate) break
-
+        if (this.props.selectedLabel && this.selectedTemplate) {
           if (!this.props.contextMenuDetail && this.selectedRect) {
             // First time hitting up/down; popup the context menu
             windowActions.setSubmenuSelectedIndex(0)
-            showContextMenu(this.selectedRect, this.selectedTemplate)
+            showContextMenu(this.selectedRect, this.selectedTemplate.toJS())
           } else {
             // Context menu already visible; move selection up or down
             const nextIndex = wrappingClamp(
@@ -168,11 +181,6 @@ class Menubar extends ImmutableComponent {
         break
     }
   }
-
-  // BSCTODO: keyup handler needed:
-  // - for ESC, to set selection to null (context menu already handles ESC properly)
-  // - for ALT, unset selection and hide menu
-
   componentWillUnmount () {
     document.removeEventListener('keydown', this.onKeyDown)
   }
