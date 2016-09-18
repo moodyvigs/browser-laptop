@@ -126,9 +126,10 @@ class Main extends ImmutableComponent {
       switch (e.which) {
         case keyCodes.ALT:
           if (customTitlebar.enabled) {
-            // BSCTODO: if it's always visible, set a selected item instead
             e.preventDefault()
-            windowActions.toggleMenubarVisible()
+            const menubarTemplate = this.props.appState.getIn(['menu', 'template'])
+            const defaultLabel = menubarTemplate.getIn([0, 'label'])
+            windowActions.toggleMenubarVisible(null, defaultLabel)
           }
           break
       }

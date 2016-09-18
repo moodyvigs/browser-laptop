@@ -101,7 +101,7 @@ class Menubar extends ImmutableComponent {
   get selectedIndexMax () {
     const result = this.selectedTemplateItemsOnly
     if (result && Array.isArray(result)) {
-      return result.length;
+      return result.length
     }
     return 0
   }
